@@ -5,3 +5,8 @@ Install the package via composer:
 ```bash
 composer require team-nifty-gmbh/flux-dev-helpers --dev
 ```
+
+## 2. Publishing the workflow
+```bash
+php artisan vendor:publish --tag=flux-dev-helpers-laravel-workflow
+```
