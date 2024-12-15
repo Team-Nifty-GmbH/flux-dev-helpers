@@ -15,7 +15,7 @@ use function Livewire\invade;
 
 class GenerateLivewireSmokeTests extends MakeLivewireCommand
 {
-    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all}';
+    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all} {--stub}';
 
     protected $description = 'Command description';
 
