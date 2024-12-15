@@ -28,6 +28,6 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
     {
         $this->publishes([
             __DIR__ . '/../stubs/laravel.yml' => base_path('.github/workflows/laravel.yml'),
-        ]);
+        ], 'flux-dev-helpers-laravel-workflow');
     }
 }
