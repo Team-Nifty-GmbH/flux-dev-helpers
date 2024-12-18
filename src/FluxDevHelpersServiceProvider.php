@@ -2,11 +2,8 @@
 
 namespace TeamNiftyGmbH\FluxDevHelpers;
 
-use FluxErp\Events\MailAccount\Connecting;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\GenerateLivewireSmokeTests;
-use TeamNiftyGmbH\FluxOffice365\Listeners\MailAccountConnectingListener;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
 {
@@ -19,10 +16,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
         $this->offerPublishing();
     }
 
-    public function boot(): void
-    {
-
-    }
+    public function boot(): void {}
 
     protected function offerPublishing(): void
     {

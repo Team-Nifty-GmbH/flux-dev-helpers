@@ -11,6 +11,7 @@ use Livewire\Mechanisms\ComponentRegistry;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RegexIterator;
+
 use function Livewire\invade;
 
 class GenerateLivewireSmokeTests extends MakeLivewireCommand
