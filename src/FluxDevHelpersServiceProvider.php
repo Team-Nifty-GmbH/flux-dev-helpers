@@ -4,6 +4,7 @@ namespace TeamNiftyGmbH\FluxDevHelpers;
 
 use Illuminate\Support\ServiceProvider;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\GenerateLivewireSmokeTests;
+use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeModelCommand;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
 {
@@ -11,6 +12,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
     {
         $this->commands([
             GenerateLivewireSmokeTests::class,
+            MakeModelCommand::class,
         ]);
 
         $this->offerPublishing();
