@@ -68,9 +68,9 @@ class MakeModelCommand extends GeneratorCommand
             'make:flux-form',
             [
                 'name' => $name . 'Form',
-                '--createAction' => $command->getDefaultNamespace($this->rootNamespace()) . '\Create' . $name . '::class',
-                '--updateAction' => $command->getDefaultNamespace($this->rootNamespace()) . '\Update' . $name . '::class',
-                '--deleteAction' => $command->getDefaultNamespace($this->rootNamespace()) . '\Delete' . $name . '::class',
+                '--createAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Create' . $name . '::class', '\\'),
+                '--updateAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Update' . $name . '::class', '\\'),
+                '--deleteAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Delete' . $name . '::class', '\\'),
             ]
         );
     }
