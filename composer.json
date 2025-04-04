@@ -1,50 +1,50 @@
 {
-    "name": "team-nifty-gmbh/flux-dev-helpers",
-    "description": "Dev helpers for Flux",
-    "type": "library",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "TeamNiftyGmbH\\FluxDevHelpers\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Patrick Weh",
-            "email": "pw@team-nifty.com"
-        }
-    ],
-    "minimum-stability": "dev",
-    "require": {
-        "team-nifty-gmbh/flux-erp": "*"
-    },
-    "require-dev": {
-        "thedoctor0/laravel-factory-generator": "^1.4.3",
-        "brianium/paratest": "^7.0",
-        "laravel/pint": "^1.1",
-        "nunomaduro/collision": "^7.4",
-        "phpunit/phpunit": "^10.0"
-    },
-    "scripts": {
-        "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
-        "analyse": "vendor/bin/phpstan analyse",
-        "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage",
-        "format": "vendor/bin/pint"
-    },
-    "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "pestphp/pest-plugin": true,
-            "phpstan/extension-installer": true,
-            "php-http/discovery": true
-        }
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "TeamNiftyGmbH\\FluxDevHelpers\\FluxDevHelpersServiceProvider"
-            ]
-        }
+  "name": "team-nifty-gmbh/flux-dev-helpers",
+  "description": "Dev helpers for Flux",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "TeamNiftyGmbH\\FluxDevHelpers\\": "src/"
     }
+  },
+  "authors": [
+    {
+      "name": "Patrick Weh",
+      "email": "pw@team-nifty.com"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "team-nifty-gmbh/flux-erp": "*"
+  },
+  "require-dev": {
+    "thedoctor0/laravel-factory-generator": "^1.4.3",
+    "brianium/paratest": "^7.0",
+    "laravel/pint": "^1.1",
+    "nunomaduro/collision": "^7.4",
+    "phpunit/phpunit": "^10.0"
+  },
+  "scripts": {
+    "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
+    "analyse": "vendor/bin/phpstan analyse",
+    "test": "vendor/bin/pest",
+    "test-coverage": "vendor/bin/pest --coverage",
+    "format": "vendor/bin/pint"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true,
+      "phpstan/extension-installer": true,
+      "php-http/discovery": true
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "TeamNiftyGmbH\\FluxDevHelpers\\FluxDevHelpersServiceProvider"
+      ]
+    }
+  }
 }

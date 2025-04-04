@@ -9,14 +9,13 @@ use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
-
 use function Livewire\invade;
 
 class MakeModelCommand extends GeneratorCommand
 {
-    protected $signature = 'flux-dev:make-model {name}';
-
     protected $description = 'Command description';
+
+    protected $signature = 'flux-dev:make-model {name}';
 
     public function handle(): void
     {
@@ -75,7 +74,7 @@ class MakeModelCommand extends GeneratorCommand
         );
     }
 
-    protected function getStub()
+    protected function getStub(): void
     {
         // TODO: Implement getStub() method.
     }

@@ -3,22 +3,24 @@
 namespace TeamNiftyGmbH\FluxDevHelpers;
 
 use Illuminate\Support\ServiceProvider;
+use TeamNiftyGmbH\FluxDevHelpers\Commands\FixOrderPositionSort;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\GenerateLivewireSmokeTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeModelCommand;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
 {
+    public function boot(): void {}
+
     public function register(): void
     {
         $this->commands([
             GenerateLivewireSmokeTests::class,
             MakeModelCommand::class,
+            FixOrderPositionSort::class,
         ]);
 
         $this->offerPublishing();
     }
-
-    public function boot(): void {}
 
     protected function offerPublishing(): void
     {

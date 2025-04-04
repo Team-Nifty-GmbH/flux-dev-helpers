@@ -10,22 +10,23 @@ use Livewire\Livewire;
 use Livewire\Mechanisms\ComponentRegistry;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionClass;
 use RegexIterator;
-
+use Throwable;
 use function Livewire\invade;
 
 class GenerateLivewireSmokeTests extends MakeLivewireCommand
 {
-    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all} {--stub}';
-
     protected $description = 'Command description';
+
+    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all} {--stub}';
 
     public function handle(): void
     {
         $this->registerLivewireComponents();
         if ($this->option('all') || ! $this->argument('name')) {
             $componentRegistry = invade(app(ComponentRegistry::class));
-            collect($componentRegistry->aliases)->each(function ($class) {
+            collect($componentRegistry->aliases)->each(function ($class): void {
                 if (str_starts_with($class, config('livewire.class_namespace'))) {
                     $class = Str::after($class, config('livewire.class_namespace') . '\\');
                     $this->call('flux-dev:generate-livewire-smoke-tests', ['name' => $class]);
@@ -49,23 +50,6 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
         }
     }
 
-    protected function registerLivewireComponents(): void
-    {
-        $livewireNamespace = config('livewire.class_namespace');
-
-        foreach ($this->getViewClassAliasFromNamespace($livewireNamespace) as $alias => $class) {
-            try {
-                if (is_a($class, Component::class, true)
-                    && ! (new \ReflectionClass($class))->isAbstract()
-                ) {
-                    Livewire::component($alias, $class);
-                }
-            } catch (\Throwable) {
-
-            }
-        }
-    }
-
     protected function getViewClassAliasFromNamespace(string $namespace, ?string $directoryPath = null): array
     {
         $directoryPath = $directoryPath ?: app_path('Livewire');
@@ -84,7 +68,7 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
 
             if (class_exists($class)) {
                 $exploded = explode('\\', $relativePath);
-                array_walk($exploded, function (&$value) {
+                array_walk($exploded, function (&$value): void {
                     $value = Str::snake(Str::remove('.php', $value), '-');
                 });
 
@@ -94,5 +78,21 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
         }
 
         return $components;
+    }
+
+    protected function registerLivewireComponents(): void
+    {
+        $livewireNamespace = config('livewire.class_namespace');
+
+        foreach ($this->getViewClassAliasFromNamespace($livewireNamespace) as $alias => $class) {
+            try {
+                if (is_a($class, Component::class, true)
+                    && ! (new ReflectionClass($class))->isAbstract()
+                ) {
+                    Livewire::component($alias, $class);
+                }
+            } catch (Throwable) {
+            }
+        }
     }
 }
