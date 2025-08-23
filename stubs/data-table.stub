@@ -1,0 +1,13 @@
+<?php
+
+namespace {{ namespace }};
+
+use FluxErp\Livewire\DataTables\BaseDataTable;
+use {{ model_import }};
+
+class {{ class }} extends BaseDataTable
+{
+    protected string $model = {{ model }}::class;
+
+    public array $enabledCols = [];
+}

@@ -24,10 +24,10 @@ class MakeModelCommand extends GeneratorCommand
         $modelClass = $this->qualifyModel($name);
         $name = class_basename($modelClass);
 
-        $this->call('make:model', ['name' => $modelClass, '--migration' => true]);
+        $this->call('flux-dev:make-flux-model', ['name' => $modelClass, '--migration' => true]);
 
         // create the datatable
-        $this->call('make:data-table', ['name' => $name . 'List', 'model' => $modelClass]);
+        $this->call('flux-dev:make-flux-data-table', ['name' => $name . 'List', 'model' => $modelClass]);
         // create rulesets
         $this->call('make:ruleset', ['name' => 'Create' . $name . 'Ruleset', '--model' => $modelClass]);
         $createRuleset = $this->invadeCommand(

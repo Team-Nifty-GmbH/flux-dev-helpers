@@ -1,0 +1,10 @@
+<?php
+
+namespace {{ namespace }};
+
+use FluxErp\Models\FluxModel;
+
+class {{ class }} extends FluxModel
+{
+    protected $table = '{{ table }}';
+}
