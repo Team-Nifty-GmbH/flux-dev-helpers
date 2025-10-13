@@ -228,7 +228,7 @@ class UpdateFromRemote extends Command
         ['user' => $dbUser, 'pass' => $dbPass, 'name' => $dbName] = $credentials;
 
         $result = spin(
-            fn () => Process::run(sprintf(
+            fn () => Process::timeout(900)->run(sprintf(
                 "ssh %s@%s \"mysqldump -u'%s' -p'%s' '%s' > ~/dump.sql\"",
                 $this->remoteUser,
                 $this->remoteHost,
@@ -366,7 +366,7 @@ class UpdateFromRemote extends Command
             fn () => Process::run('./vendor/bin/sail artisan migrate --force'),
             __('Running migrations...')
         );
-        
+
         if ($result->failed()) {
             warning(__('Migration failed'));
         }
@@ -397,7 +397,7 @@ class UpdateFromRemote extends Command
     {
         $rootDirectory = '~/' . $this->remoteHost;
         $result = spin(
-            fn () => Process::run(sprintf(
+            fn () => Process::timeout(900)->run(sprintf(
                 'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e ssh %s@%s:%s/storage .',
                 $this->remoteUser,
                 $this->remoteHost,
