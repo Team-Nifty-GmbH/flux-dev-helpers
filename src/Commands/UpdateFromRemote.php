@@ -247,7 +247,8 @@ class UpdateFromRemote extends Command
         }
 
         $result = spin(
-            fn () => Process::run(sprintf(
+            fn () => Process::timeout(900)
+            ->run(sprintf(
                 'scp %s@%s:~/dump.sql .',
                 $this->remoteUser,
                 $this->remoteHost
