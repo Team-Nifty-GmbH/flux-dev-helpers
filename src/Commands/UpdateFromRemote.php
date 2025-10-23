@@ -39,12 +39,18 @@ class UpdateFromRemote extends Command
 
     public function handle(): int
     {
+        $useLocal = $this->determineUseLocal();
+
         // Collect all choices upfront
-        if (! $this->selectRemoteServer()) {
-            return Command::FAILURE;
+        if (! $useLocal) {
+            if (! $this->selectRemoteServer()) {
+                return Command::FAILURE;
+            }
+        } else {
+            $this->remoteHost = 'local';
+            $this->remoteUser = 'local';
         }
 
-        $useLocal = $this->determineUseLocal();
         $this->shouldSyncStorage = $this->determineSyncStorage($useLocal);
         $this->shouldDeleteDump = $this->determineDumpDeletion();
 
