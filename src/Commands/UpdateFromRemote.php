@@ -10,10 +10,8 @@ use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\note;
-use function Laravel\Prompts\search;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
-use function Laravel\Prompts\warning;
 
 class UpdateFromRemote extends Command
 {
@@ -218,7 +216,7 @@ class UpdateFromRemote extends Command
 
     protected function handleRemoteDump(): bool
     {
-        $rootDirectory = '~/' . $this->remoteHost;
+        $rootDirectory = '~/'.$this->remoteHost;
 
         $credentials = spin(
             fn () => $this->getRemoteCredentials($rootDirectory),
@@ -254,11 +252,11 @@ class UpdateFromRemote extends Command
 
         $result = spin(
             fn () => Process::timeout(900)
-            ->run(sprintf(
-                'scp %s@%s:~/dump.sql .',
-                $this->remoteUser,
-                $this->remoteHost
-            )),
+                ->run(sprintf(
+                    'scp %s@%s:~/dump.sql .',
+                    $this->remoteUser,
+                    $this->remoteHost
+                )),
             __('Downloading dump...')
         );
 
@@ -375,7 +373,8 @@ class UpdateFromRemote extends Command
         );
 
         if ($result->failed()) {
-            warning(__('Migration failed'));
+            error(__('Migration failed'));
+            error($result->errorOutput());
         }
 
         spin(
@@ -402,7 +401,7 @@ class UpdateFromRemote extends Command
 
     protected function syncStorage(): void
     {
-        $rootDirectory = '~/' . $this->remoteHost;
+        $rootDirectory = '~/'.$this->remoteHost;
         $result = spin(
             fn () => Process::timeout(900)->run(sprintf(
                 'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e ssh %s@%s:%s/storage .',
@@ -414,7 +413,8 @@ class UpdateFromRemote extends Command
         );
 
         if ($result->failed()) {
-            warning(__('Storage sync failed'));
+            error(__('Storage sync failed'));
+            error($result->errorOutput());
         }
     }
 

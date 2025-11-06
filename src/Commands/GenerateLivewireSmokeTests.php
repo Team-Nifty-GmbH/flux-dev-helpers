@@ -2,6 +2,7 @@
 
 namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\Features\SupportConsoleCommands\Commands\ComponentParser;
@@ -17,7 +18,7 @@ use function Livewire\invade;
 
 class GenerateLivewireSmokeTests extends MakeLivewireCommand
 {
-    protected $description = 'Command description';
+    protected $description = 'Generate Pest smoke tests for Livewire components';
 
     protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all} {--stub}';
 
@@ -47,6 +48,44 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
 
         if ($test) {
             $test && $this->line("<options=bold;fg=green>TEST:</>  {$this->parser->relativeTestPath()}");
+        }
+    }
+
+    protected function createTest(): bool
+    {
+        $testPath = $this->parser->testPath();
+
+        if (File::exists($testPath)) {
+            $this->line("<options=bold;fg=red>TEST ALREADY EXISTS:</> {$this->parser->relativeTestPath()}");
+
+            return false;
+        }
+
+        $this->ensureTestDirectoryExists($testPath);
+
+        $stubPath = __DIR__ . '/../../stubs/livewire-smoke-test.stub';
+
+        if (! File::exists($stubPath)) {
+            $this->error("Stub file not found: {$stubPath}");
+
+            return false;
+        }
+
+        $stub = File::get($stubPath);
+
+        $stub = str_replace('{{ componentClass }}', $this->parser->className(), $stub);
+
+        File::put($testPath, $stub);
+
+        return true;
+    }
+
+    protected function ensureTestDirectoryExists(string $path): void
+    {
+        $directory = dirname($path);
+
+        if (! File::isDirectory($directory)) {
+            File::makeDirectory($directory, 0755, true);
         }
     }
 

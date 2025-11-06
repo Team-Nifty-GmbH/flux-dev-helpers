@@ -3,12 +3,12 @@
 namespace TeamNiftyGmbH\FluxDevHelpers;
 
 use Illuminate\Support\ServiceProvider;
-use TeamNiftyGmbH\FluxDevHelpers\Commands\FixOrderPositionSort;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\GenerateLivewireSmokeTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeFluxDataTableCommand;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeFluxModelCommand;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeModelCommand;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\PublishPintConfig;
+use TeamNiftyGmbH\FluxDevHelpers\Commands\SetupTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\UpdateFromRemote;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
@@ -25,9 +25,9 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
             MakeModelCommand::class,
             MakeFluxModelCommand::class,
             MakeFluxDataTableCommand::class,
-            FixOrderPositionSort::class,
             UpdateFromRemote::class,
             PublishPintConfig::class,
+            SetupTests::class,
         ]);
 
         $this->offerPublishing();

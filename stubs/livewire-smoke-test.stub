@@ -1,0 +1,9 @@
+<?php
+
+use {{ componentClass }};
+use Livewire\Livewire;
+
+it('renders successfully', function () {
+    Livewire::test({{ componentClass }}::class)
+        ->assertStatus(200);
+});
