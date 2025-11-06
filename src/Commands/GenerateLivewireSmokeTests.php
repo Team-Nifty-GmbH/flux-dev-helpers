@@ -2,11 +2,10 @@
 
 namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Component;
-use Livewire\Features\SupportConsoleCommands\Commands\ComponentParser;
-use Livewire\Features\SupportConsoleCommands\Commands\MakeLivewireCommand;
 use Livewire\Livewire;
 use Livewire\Mechanisms\ComponentRegistry;
 use RecursiveDirectoryIterator;
@@ -16,15 +15,16 @@ use RegexIterator;
 use Throwable;
 use function Livewire\invade;
 
-class GenerateLivewireSmokeTests extends MakeLivewireCommand
+class GenerateLivewireSmokeTests extends Command
 {
     protected $description = 'Generate Pest smoke tests for Livewire components';
 
-    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all} {--stub}';
+    protected $signature = 'flux-dev:generate-livewire-smoke-tests {name?} {--all}';
 
-    public function handle(): void
+    public function handle(): int
     {
         $this->registerLivewireComponents();
+
         if ($this->option('all') || ! $this->argument('name')) {
             $componentRegistry = invade(app(ComponentRegistry::class));
             collect($componentRegistry->aliases)->each(function ($class): void {
@@ -34,31 +34,24 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
                 }
             });
 
-            return;
+            return Command::SUCCESS;
         }
 
-        $this->parser = new ComponentParser(
-            config('livewire.class_namespace'),
-            config('livewire.view_path'),
-            $this->argument('name'),
-            $this->option('stub')
-        );
+        $componentName = $this->argument('name');
+        $componentClass = $this->resolveComponentClass($componentName);
 
-        $test = $this->createTest();
+        if (! $componentClass) {
+            $this->error("Component not found: {$componentName}");
 
-        if ($test) {
-            $test && $this->line("<options=bold;fg=green>TEST:</>  {$this->parser->relativeTestPath()}");
+            return Command::FAILURE;
         }
-    }
 
-    protected function createTest(): bool
-    {
-        $testPath = $this->parser->testPath();
+        $testPath = $this->getTestPath($componentName);
 
         if (File::exists($testPath)) {
-            $this->line("<options=bold;fg=red>TEST ALREADY EXISTS:</> {$this->parser->relativeTestPath()}");
+            $this->line("<options=bold;fg=red>TEST ALREADY EXISTS:</> {$testPath}");
 
-            return false;
+            return Command::FAILURE;
         }
 
         $this->ensureTestDirectoryExists($testPath);
@@ -68,16 +61,17 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
         if (! File::exists($stubPath)) {
             $this->error("Stub file not found: {$stubPath}");
 
-            return false;
+            return Command::FAILURE;
         }
 
         $stub = File::get($stubPath);
-
-        $stub = str_replace('{{ componentClass }}', $this->parser->className(), $stub);
+        $stub = str_replace('{{ componentClass }}', $componentClass, $stub);
 
         File::put($testPath, $stub);
 
-        return true;
+        $this->line("<options=bold;fg=green>TEST:</> {$testPath}");
+
+        return Command::SUCCESS;
     }
 
     protected function ensureTestDirectoryExists(string $path): void
@@ -87,6 +81,13 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
         if (! File::isDirectory($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
+    }
+
+    protected function getTestPath(string $componentName): string
+    {
+        $testName = str_replace('.', '/', Str::studly($componentName)) . 'Test.php';
+
+        return base_path('tests/Feature/Livewire/' . $testName);
     }
 
     protected function getViewClassAliasFromNamespace(string $namespace, ?string $directoryPath = null): array
@@ -133,5 +134,13 @@ class GenerateLivewireSmokeTests extends MakeLivewireCommand
             } catch (Throwable) {
             }
         }
+    }
+
+    protected function resolveComponentClass(string $componentName): ?string
+    {
+        $namespace = config('livewire.class_namespace');
+        $class = $namespace . '\\' . str_replace('.', '\\', Str::studly($componentName));
+
+        return class_exists($class) ? $class : null;
     }
 }
