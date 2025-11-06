@@ -3,7 +3,7 @@
 use {{ componentClass }};
 use Livewire\Livewire;
 
-it('renders successfully', function () {
+test('renders successfully', function () {
     Livewire::test({{ componentClass }}::class)
         ->assertStatus(200);
 });
