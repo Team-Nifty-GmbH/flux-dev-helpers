@@ -5,6 +5,16 @@ namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
+use TeamNiftyGmbH\FluxDevHelpers\Events\DatabaseImportCompleted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\DatabaseImportStarted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\DumpDownloaded;
+use TeamNiftyGmbH\FluxDevHelpers\Events\MigrationsCompleted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\RemoteDumpCreated;
+use TeamNiftyGmbH\FluxDevHelpers\Events\StorageSyncCompleted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\StorageSyncStarted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteCompleted;
+use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteFailed;
+use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteStarted;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
@@ -56,17 +66,43 @@ class UpdateFromRemote extends Command
         info(__('Starting update process...'));
         $this->displaySummary($useLocal);
 
+        UpdateFromRemoteStarted::dispatch(
+            $this->remoteHost,
+            $this->remoteUser,
+            $useLocal,
+            $this->shouldSyncStorage,
+            $this->shouldDeleteDump
+        );
+
         if ($useLocal) {
             if (! $this->handleLocalDump()) {
+                UpdateFromRemoteFailed::dispatch(
+                    $this->remoteHost,
+                    $this->remoteUser,
+                    'Local dump file not found'
+                );
+
                 return Command::FAILURE;
             }
         } else {
             if (! $this->handleRemoteDump()) {
+                UpdateFromRemoteFailed::dispatch(
+                    $this->remoteHost,
+                    $this->remoteUser,
+                    'Failed to handle remote dump'
+                );
+
                 return Command::FAILURE;
             }
         }
 
         if (! $this->importDatabase()) {
+            UpdateFromRemoteFailed::dispatch(
+                $this->remoteHost,
+                $this->remoteUser,
+                'Database import failed'
+            );
+
             return Command::FAILURE;
         }
 
@@ -81,6 +117,12 @@ class UpdateFromRemote extends Command
         }
 
         info(__('Update completed successfully!'));
+
+        UpdateFromRemoteCompleted::dispatch(
+            $this->remoteHost,
+            $this->remoteUser,
+            true
+        );
 
         return Command::SUCCESS;
     }
@@ -250,6 +292,8 @@ class UpdateFromRemote extends Command
             return false;
         }
 
+        RemoteDumpCreated::dispatch($this->remoteHost, $this->remoteUser);
+
         $result = spin(
             fn () => Process::timeout(900)
                 ->run(sprintf(
@@ -266,6 +310,8 @@ class UpdateFromRemote extends Command
 
             return false;
         }
+
+        DumpDownloaded::dispatch($this->remoteHost, $this->remoteUser, $this->dumpFile);
 
         spin(
             fn () => Process::run(sprintf(
@@ -316,6 +362,8 @@ class UpdateFromRemote extends Command
 
     protected function importDatabase(): bool
     {
+        DatabaseImportStarted::dispatch($this->dumpFile);
+
         $dbHost = config('database.connections.mysql.host');
         $dbPort = config('database.connections.mysql.port');
         $dbDatabase = config('database.connections.mysql.database');
@@ -362,6 +410,8 @@ class UpdateFromRemote extends Command
             return false;
         }
 
+        DatabaseImportCompleted::dispatch($this->dumpFile);
+
         return true;
     }
 
@@ -375,6 +425,9 @@ class UpdateFromRemote extends Command
         if ($result->failed()) {
             error(__('Migration failed'));
             error($result->errorOutput());
+            MigrationsCompleted::dispatch(false);
+        } else {
+            MigrationsCompleted::dispatch(true);
         }
 
         spin(
@@ -401,6 +454,8 @@ class UpdateFromRemote extends Command
 
     protected function syncStorage(): void
     {
+        StorageSyncStarted::dispatch($this->remoteHost, $this->remoteUser);
+
         $rootDirectory = '~/'.$this->remoteHost;
         $result = spin(
             fn () => Process::timeout(900)->run(sprintf(
@@ -415,6 +470,9 @@ class UpdateFromRemote extends Command
         if ($result->failed()) {
             error(__('Storage sync failed'));
             error($result->errorOutput());
+            StorageSyncCompleted::dispatch($this->remoteHost, $this->remoteUser, false);
+        } else {
+            StorageSyncCompleted::dispatch($this->remoteHost, $this->remoteUser, true);
         }
     }
 
