@@ -2,9 +2,11 @@
 
 namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
+use RuntimeException;
 use TeamNiftyGmbH\FluxDevHelpers\Events\DatabaseImportCompleted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\DatabaseImportStarted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\DumpDownloaded;
@@ -417,24 +419,26 @@ class UpdateFromRemote extends Command
 
     protected function runLaravelCommands(): void
     {
-        $result = spin(
-            fn () => Process::run('./vendor/bin/sail artisan migrate --force'),
-            __('Running migrations...')
-        );
+        $artisan = $this->getArtisanCommand();
+
+        info(__('Running migrations...'));
+        $result = Process::run($artisan.' migrate --force');
+
+        $this->line($result->output());
 
         if ($result->failed()) {
-            error(__('Migration failed'));
-            error($result->errorOutput());
             MigrationsCompleted::dispatch(false);
-        } else {
-            MigrationsCompleted::dispatch(true);
+
+            throw new RuntimeException($result->errorOutput());
         }
 
+        MigrationsCompleted::dispatch(true);
+
         spin(
-            function () {
+            function (): void {
                 try {
                     DB::statement('TRUNCATE TABLE logs');
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Silently fail if table doesn't exist
                 }
             },
@@ -442,14 +446,19 @@ class UpdateFromRemote extends Command
         );
 
         spin(
-            fn () => Process::run('./vendor/bin/sail artisan cache:clear'),
+            fn () => Process::run($artisan.' cache:clear'),
             __('Clearing cache...')
         );
 
         spin(
-            fn () => Process::run('./vendor/bin/sail artisan storage:link'),
+            fn () => Process::run($artisan.' storage:link'),
             __('Creating storage link...')
         );
+    }
+
+    protected function getArtisanCommand(): string
+    {
+        return env('LARAVEL_SAIL') ? 'php artisan' : './vendor/bin/sail artisan';
     }
 
     protected function syncStorage(): void

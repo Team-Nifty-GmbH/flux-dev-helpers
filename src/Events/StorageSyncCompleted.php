@@ -14,6 +14,5 @@ class StorageSyncCompleted
         public readonly string $remoteHost,
         public readonly string $remoteUser,
         public readonly bool $success
-    ) {
-    }
+    ) {}
 }

@@ -12,6 +12,5 @@ class DatabaseImportStarted
 
     public function __construct(
         public readonly string $dumpFile
-    ) {
-    }
+    ) {}
 }

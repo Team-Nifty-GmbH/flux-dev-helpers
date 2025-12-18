@@ -14,6 +14,5 @@ class DumpDownloaded
         public readonly string $remoteHost,
         public readonly string $remoteUser,
         public readonly string $dumpFile
-    ) {
-    }
+    ) {}
 }

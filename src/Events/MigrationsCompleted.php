@@ -12,6 +12,5 @@ class MigrationsCompleted
 
     public function __construct(
         public readonly bool $success
-    ) {
-    }
+    ) {}
 }

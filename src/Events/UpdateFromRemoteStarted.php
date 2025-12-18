@@ -16,6 +16,5 @@ class UpdateFromRemoteStarted
         public readonly bool $useLocal,
         public readonly bool $shouldSyncStorage,
         public readonly bool $shouldDeleteDump
-    ) {
-    }
+    ) {}
 }

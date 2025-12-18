@@ -13,6 +13,5 @@ class RemoteDumpCreated
     public function __construct(
         public readonly string $remoteHost,
         public readonly string $remoteUser
-    ) {
-    }
+    ) {}
 }
