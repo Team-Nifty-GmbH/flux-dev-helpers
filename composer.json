@@ -16,6 +16,7 @@
   ],
   "minimum-stability": "dev",
   "require": {
+    "dedoc/scramble": "*",
     "team-nifty-gmbh/flux-erp": "*"
   },
   "require-dev": {

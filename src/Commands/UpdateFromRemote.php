@@ -31,10 +31,13 @@ class UpdateFromRemote extends Command
 
     protected $signature = 'flux-dev:update-from-remote
                             {server? : Remote server host (optional)}
+                            {--full : Full sync: pull new dump, keep it, sync storage}
+                            {--fast : Fast sync: use local dump if exists, no storage sync}
                             {--local : Use existing local dump file}
                             {--remote : Pull new dump from server}
                             {--keep-dump : Keep dump file after import}
                             {--delete-dump : Delete dump file after import}
+                            {--sync-storage : Sync storage from remote server}
                             {--skip-storage : Skip storage synchronization}';
 
     protected string $remoteHost;
@@ -131,6 +134,16 @@ class UpdateFromRemote extends Command
 
     protected function determineUseLocal(): bool
     {
+        // --full always pulls new dump
+        if ($this->option('full')) {
+            return false;
+        }
+
+        // --fast uses local if exists, otherwise remote
+        if ($this->option('fast')) {
+            return file_exists($this->dumpFile);
+        }
+
         if ($this->option('local')) {
             return true;
         }
@@ -153,25 +166,43 @@ class UpdateFromRemote extends Command
 
     protected function determineSyncStorage(bool $useLocal): bool
     {
-        // Skip storage sync if using local dump
-        if ($useLocal) {
+        // Skip storage sync if using local dump (unless explicitly requested)
+        if ($useLocal && ! $this->option('sync-storage')) {
             return false;
         }
 
+        // --full always syncs storage
+        if ($this->option('full')) {
+            return true;
+        }
+
+        // --fast skips storage by default (unless --sync-storage is set)
+        if ($this->option('fast')) {
+            return $this->option('sync-storage');
+        }
+
         // Check if explicitly set via options
+        if ($this->option('sync-storage')) {
+            return true;
+        }
+
         if ($this->option('skip-storage')) {
             return false;
         }
 
         // Ask user
         return confirm(
-            label: __('Sync storage from remote server?'),
-            default: true
+            label: __('Sync storage from remote server?')
         );
     }
 
     protected function determineDumpDeletion(): bool
     {
+        // --full and --fast always keep the dump
+        if ($this->option('full') || $this->option('fast')) {
+            return false;
+        }
+
         if ($this->option('delete-dump')) {
             return true;
         }
