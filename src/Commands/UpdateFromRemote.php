@@ -458,7 +458,18 @@ class UpdateFromRemote extends Command
 
     protected function getArtisanCommand(): string
     {
-        return env('LARAVEL_SAIL') ? 'php artisan' : './vendor/bin/sail artisan';
+        // Already running inside Sail container
+        if (env('LARAVEL_SAIL')) {
+            return 'php artisan';
+        }
+
+        // Check if Sail is available
+        if (file_exists(base_path('vendor/bin/sail'))) {
+            return './vendor/bin/sail artisan';
+        }
+
+        // Fallback to direct PHP execution
+        return 'php artisan';
     }
 
     protected function syncStorage(): void
