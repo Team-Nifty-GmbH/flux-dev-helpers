@@ -4,6 +4,7 @@ namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
@@ -291,7 +292,8 @@ class UpdateFromRemote extends Command
 
     protected function handleRemoteDump(): bool
     {
-        $rootDirectory = '~/'.$this->remoteHost;
+        $rootDirectory = '~/' . $this->remoteHost;
+        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->remoteHost);
 
         $credentials = spin(
             fn () => $this->getRemoteCredentials($rootDirectory),
@@ -307,14 +309,10 @@ class UpdateFromRemote extends Command
         ['user' => $dbUser, 'pass' => $dbPass, 'name' => $dbName] = $credentials;
 
         $result = spin(
-            fn () => Process::timeout(900)->run(sprintf(
-                "ssh %s@%s \"mysqldump -u'%s' -p'%s' '%s' > ~/dump.sql\"",
-                $this->remoteUser,
-                $this->remoteHost,
-                $dbUser,
-                $dbPass,
-                $dbName
-            )),
+            fn () => Process::timeout(900)->run([
+                'ssh', ...$this->sshOptions(), $sshTarget,
+                sprintf("mysqldump -u'%s' -p'%s' '%s' > ~/dump.sql", $dbUser, $dbPass, $dbName),
+            ]),
             __('Creating dump on server...')
         );
 
@@ -328,12 +326,11 @@ class UpdateFromRemote extends Command
         RemoteDumpCreated::dispatch($this->remoteHost, $this->remoteUser);
 
         $result = spin(
-            fn () => Process::timeout(900)
-                ->run(sprintf(
-                    'scp %s@%s:~/dump.sql .',
-                    $this->remoteUser,
-                    $this->remoteHost
-                )),
+            fn () => Process::timeout(900)->run([
+                'scp', ...$this->sshOptions(),
+                sprintf('%s:~/dump.sql', $sshTarget),
+                '.',
+            ]),
             __('Downloading dump...')
         );
 
@@ -347,11 +344,7 @@ class UpdateFromRemote extends Command
         DumpDownloaded::dispatch($this->remoteHost, $this->remoteUser, $this->dumpFile);
 
         spin(
-            fn () => Process::run(sprintf(
-                'ssh %s@%s "rm -f ~/dump.sql"',
-                $this->remoteUser,
-                $this->remoteHost
-            )),
+            fn () => Process::run(['ssh', ...$this->sshOptions(), $sshTarget, 'rm -f ~/dump.sql']),
             __('Cleaning up on server...')
         );
 
@@ -360,59 +353,55 @@ class UpdateFromRemote extends Command
 
     protected function getRemoteCredentials(string $rootDirectory): ?array
     {
-        $commands = [
-            'user' => sprintf(
-                'ssh %s@%s "grep \'^DB_USERNAME=\' %s/.env | cut -d \'=\' -f2- | tr -d \'\"\'  | xargs"',
-                $this->remoteUser,
-                $this->remoteHost,
-                $rootDirectory
-            ),
-            'pass' => sprintf(
-                'ssh %s@%s "grep \'^DB_PASSWORD=\' %s/.env | cut -d \'=\' -f2- | tr -d \'\"\'  | xargs"',
-                $this->remoteUser,
-                $this->remoteHost,
-                $rootDirectory
-            ),
-            'name' => sprintf(
-                'ssh %s@%s "grep \'^DB_DATABASE=\' %s/.env | cut -d \'=\' -f2- | tr -d \'\"\'  | xargs"',
-                $this->remoteUser,
-                $this->remoteHost,
-                $rootDirectory
-            ),
-        ];
+        $tempEnvFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'remote_env_' . uniqid();
 
-        $credentials = [];
-        foreach ($commands as $key => $command) {
-            $result = Process::run($command);
-            if ($result->failed() || empty(trim($result->output()))) {
-                return null;
-            }
-            $credentials[$key] = trim($result->output());
+        $result = Process::run([
+            'scp', ...$this->sshOptions(),
+            sprintf('%s@%s:%s/.env', $this->remoteUser, $this->remoteHost, $rootDirectory),
+            $tempEnvFile,
+        ]);
+
+        if ($result->failed() || ! file_exists($tempEnvFile)) {
+            return null;
         }
 
-        return $credentials;
+        try {
+            $envContent = file_get_contents($tempEnvFile);
+
+            $mapping = [
+                'DB_USERNAME' => 'user',
+                'DB_PASSWORD' => 'pass',
+                'DB_DATABASE' => 'name',
+            ];
+
+            $credentials = [];
+            foreach ($mapping as $envKey => $credKey) {
+                if (preg_match('/^' . preg_quote($envKey, '/') . '=(.*)$/m', $envContent, $matches)) {
+                    $credentials[$credKey] = trim($matches[1], " \t\n\r\0\x0B\"'");
+                } else {
+                    return null;
+                }
+            }
+
+            return $credentials;
+        } finally {
+            @unlink($tempEnvFile);
+        }
     }
 
     protected function importDatabase(): bool
     {
         DatabaseImportStarted::dispatch($this->dumpFile);
 
-        $dbHost = config('database.connections.mysql.host');
-        $dbPort = config('database.connections.mysql.port');
         $dbDatabase = config('database.connections.mysql.database');
-        $dbUser = config('database.connections.mysql.username');
-        $dbPass = config('database.connections.mysql.password');
 
+        // Array-based: bypasses shell, backticks in SQL are safe
         $result = spin(
-            fn () => Process::run(sprintf(
-                'mysql -h%s -P%s -u"%s" -p"%s" --protocol=TCP -e "DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;"',
-                $dbHost,
-                $dbPort,
-                $dbUser,
-                $dbPass,
-                $dbDatabase,
-                $dbDatabase
-            )),
+            fn () => Process::run([
+                ...$this->buildMysqlArgs(),
+                '-e',
+                sprintf('DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s`;', $dbDatabase, $dbDatabase),
+            ]),
             __('Dropping and recreating database...')
         );
 
@@ -423,15 +412,13 @@ class UpdateFromRemote extends Command
             return false;
         }
 
+        // String-based: shell needed for < redirection, works on bash and cmd.exe
         $result = spin(
             fn () => Process::timeout(900)->run(sprintf(
-                'mysql -h%s -P%s -u"%s" -p"%s" "%s" < "%s"',
-                $dbHost,
-                $dbPort,
-                $dbUser,
-                $dbPass,
-                $dbDatabase,
-                $this->dumpFile
+                '%s %s < %s',
+                $this->buildMysqlCommandString(),
+                escapeshellarg($dbDatabase),
+                escapeshellarg($this->dumpFile)
             )),
             __('Importing dump into database...')
         );
@@ -446,6 +433,41 @@ class UpdateFromRemote extends Command
         DatabaseImportCompleted::dispatch($this->dumpFile);
 
         return true;
+    }
+
+    protected function buildMysqlArgs(): array
+    {
+        $args = [
+            'mysql',
+            '-h' . config('database.connections.mysql.host'),
+            '-P' . config('database.connections.mysql.port'),
+            '-u' . config('database.connections.mysql.username'),
+            '--protocol=TCP',
+        ];
+
+        $dbPass = config('database.connections.mysql.password');
+        if ($dbPass) {
+            $args[] = '-p' . $dbPass;
+        }
+
+        return $args;
+    }
+
+    protected function buildMysqlCommandString(): string
+    {
+        $cmd = sprintf(
+            'mysql -h%s -P%s -u%s --protocol=TCP',
+            escapeshellarg(config('database.connections.mysql.host')),
+            escapeshellarg(config('database.connections.mysql.port')),
+            escapeshellarg(config('database.connections.mysql.username'))
+        );
+
+        $dbPass = config('database.connections.mysql.password');
+        if ($dbPass) {
+            $cmd .= ' -p' . escapeshellarg($dbPass);
+        }
+
+        return $cmd;
     }
 
     protected function runLaravelCommands(): void
@@ -494,9 +516,9 @@ class UpdateFromRemote extends Command
             return 'php artisan';
         }
 
-        // Check if Sail is available
-        if (file_exists(base_path('vendor/bin/sail'))) {
-            return './vendor/bin/sail artisan';
+        // Sail is a bash script - skip on Windows where it can't run natively
+        if (! $this->isWindows() && file_exists(base_path('vendor/bin/sail'))) {
+            return base_path('vendor/bin/sail') . ' artisan';
         }
 
         // Fallback to direct PHP execution
@@ -507,16 +529,22 @@ class UpdateFromRemote extends Command
     {
         StorageSyncStarted::dispatch($this->remoteHost, $this->remoteUser);
 
-        $rootDirectory = '~/'.$this->remoteHost;
-        $result = spin(
-            fn () => Process::timeout(900)->run(sprintf(
-                'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e ssh %s@%s:%s/storage .',
-                $this->remoteUser,
-                $this->remoteHost,
-                $rootDirectory
-            )),
-            __('Syncing storage from server...')
-        );
+        $rootDirectory = '~/' . $this->remoteHost;
+
+        if ($this->isCommandAvailable('rsync')) {
+            $result = spin(
+                fn () => Process::timeout(900)->run(sprintf(
+                    'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e "ssh %s" %s@%s:%s/storage .',
+                    implode(' ', $this->sshOptions()),
+                    $this->remoteUser,
+                    $this->remoteHost,
+                    $rootDirectory
+                )),
+                __('Syncing storage from server (rsync)...')
+            );
+        } else {
+            $result = $this->syncStorageViaTar($rootDirectory);
+        }
 
         if ($result->failed()) {
             error(__('Storage sync failed'));
@@ -527,11 +555,75 @@ class UpdateFromRemote extends Command
         }
     }
 
+    protected function syncStorageViaTar(string $rootDirectory): ProcessResult
+    {
+        $archiveName = 'storage_sync_' . uniqid() . '.tar.gz';
+        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->remoteHost);
+
+        $result = spin(
+            fn () => Process::timeout(300)->run([
+                'ssh', ...$this->sshOptions(), $sshTarget,
+                sprintf('cd %s && tar -czf ~/%s --exclude="logs" --exclude="framework" storage', $rootDirectory, $archiveName),
+            ]),
+            __('Creating storage archive on server...')
+        );
+
+        if ($result->failed()) {
+            return $result;
+        }
+
+        $result = spin(
+            fn () => Process::timeout(900)->run([
+                'scp', ...$this->sshOptions(),
+                sprintf('%s:~/%s', $sshTarget, $archiveName),
+                '.',
+            ]),
+            __('Downloading storage archive...')
+        );
+
+        if ($result->failed()) {
+            Process::run(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
+
+            return $result;
+        }
+
+        $result = spin(
+            fn () => Process::run(['tar', '-xzf', $archiveName]),
+            __('Extracting storage archive...')
+        );
+
+        @unlink($archiveName);
+        Process::run(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
+
+        return $result;
+    }
+
     protected function deleteDump(): void
     {
         if (file_exists($this->dumpFile)) {
             unlink($this->dumpFile);
             note(__('Dump file has been deleted.'));
         }
+    }
+
+    protected function sshOptions(): array
+    {
+        $devNull = $this->isWindows() ? 'NUL' : '/dev/null';
+
+        return ['-o', 'StrictHostKeyChecking=no', '-o', "UserKnownHostsFile=$devNull"];
+    }
+
+    protected function isWindows(): bool
+    {
+        return PHP_OS_FAMILY === 'Windows';
+    }
+
+    protected function isCommandAvailable(string $command): bool
+    {
+        $result = Process::run(
+            $this->isWindows() ? ['where', $command] : ['which', $command]
+        );
+
+        return $result->successful();
     }
 }
