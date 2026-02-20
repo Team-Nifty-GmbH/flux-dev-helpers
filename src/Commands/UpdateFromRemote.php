@@ -18,7 +18,6 @@ use TeamNiftyGmbH\FluxDevHelpers\Events\StorageSyncStarted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteCompleted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteFailed;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteStarted;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
@@ -41,9 +40,19 @@ class UpdateFromRemote extends Command
                             {--sync-storage : Sync storage from remote server}
                             {--skip-storage : Skip storage synchronization}';
 
-    protected string $remoteHost;
+    protected string $serverName;
 
     protected string $remoteUser;
+
+    protected string $sshHost;
+
+    protected ?int $sshPort = null;
+
+    protected ?string $identityFile = null;
+
+    protected ?string $proxyJump = null;
+
+    protected string $remoteDirectory;
 
     protected string $dumpFile = 'dump.sql';
 
@@ -61,8 +70,10 @@ class UpdateFromRemote extends Command
                 return Command::FAILURE;
             }
         } else {
-            $this->remoteHost = 'local';
+            $this->serverName = 'local';
             $this->remoteUser = 'local';
+            $this->sshHost = 'local';
+            $this->remoteDirectory = '';
         }
 
         $this->shouldSyncStorage = $this->determineSyncStorage($useLocal);
@@ -73,7 +84,7 @@ class UpdateFromRemote extends Command
         $this->displaySummary($useLocal);
 
         UpdateFromRemoteStarted::dispatch(
-            $this->remoteHost,
+            $this->serverName,
             $this->remoteUser,
             $useLocal,
             $this->shouldSyncStorage,
@@ -83,7 +94,7 @@ class UpdateFromRemote extends Command
         if ($useLocal) {
             if (! $this->handleLocalDump()) {
                 UpdateFromRemoteFailed::dispatch(
-                    $this->remoteHost,
+                    $this->serverName,
                     $this->remoteUser,
                     'Local dump file not found'
                 );
@@ -93,7 +104,7 @@ class UpdateFromRemote extends Command
         } else {
             if (! $this->handleRemoteDump()) {
                 UpdateFromRemoteFailed::dispatch(
-                    $this->remoteHost,
+                    $this->serverName,
                     $this->remoteUser,
                     'Failed to handle remote dump'
                 );
@@ -104,7 +115,7 @@ class UpdateFromRemote extends Command
 
         if (! $this->importDatabase()) {
             UpdateFromRemoteFailed::dispatch(
-                $this->remoteHost,
+                $this->serverName,
                 $this->remoteUser,
                 'Database import failed'
             );
@@ -125,7 +136,7 @@ class UpdateFromRemote extends Command
         info(__('Update completed successfully!'));
 
         UpdateFromRemoteCompleted::dispatch(
-            $this->remoteHost,
+            $this->serverName,
             $this->remoteUser,
             true
         );
@@ -221,7 +232,10 @@ class UpdateFromRemote extends Command
     protected function displaySummary(bool $useLocal): void
     {
         note(__('Configuration:'));
-        note(__('  Server: :host (:user)', ['host' => $this->remoteHost, 'user' => $this->remoteUser]));
+        note(__('  Server: :name (:user)', ['name' => $this->serverName, 'user' => $this->remoteUser]));
+        if ($this->sshHost !== $this->serverName) {
+            note(__('  SSH: :host::port', ['host' => $this->sshHost, 'port' => $this->sshPort ?? 22]));
+        }
         note(__('  Dump source: :source', ['source' => $useLocal ? __('Local') : __('Remote')]));
         note(__('  Sync storage: :sync', ['sync' => $this->shouldSyncStorage ? __('Yes') : __('No')]));
         note(__('  Delete dump: :delete', ['delete' => $this->shouldDeleteDump ? __('Yes') : __('No')]));
@@ -247,23 +261,27 @@ class UpdateFromRemote extends Command
                 return false;
             }
 
-            $this->remoteHost = $serverArg;
-            $this->remoteUser = $servers[$serverArg];
+            $this->resolveServerConfig($serverArg, $servers[$serverArg]);
 
             return true;
         }
 
         if (count($servers) === 1) {
-            $this->remoteHost = array_key_first($servers);
-            $this->remoteUser = $servers[$this->remoteHost];
-            note(__('Using server: :host', ['host' => $this->remoteHost]));
+            $key = array_key_first($servers);
+            $this->resolveServerConfig($key, $servers[$key]);
+            note(__('Using server: :host', ['host' => $this->serverName]));
 
             return true;
         }
 
         $options = [];
-        foreach ($servers as $host => $user) {
-            $options[$host] = sprintf('%s (%s)', $host, $user);
+        foreach ($servers as $host => $config) {
+            $user = is_string($config) ? $config : $config['user'];
+            $sshHost = is_string($config) ? $host : ($config['host'] ?? $host);
+            $label = $host === $sshHost
+                ? sprintf('%s (%s)', $host, $user)
+                : sprintf('%s → %s (%s)', $host, $sshHost, $user);
+            $options[$host] = $label;
         }
 
         $selected = select(
@@ -271,10 +289,29 @@ class UpdateFromRemote extends Command
             options: $options
         );
 
-        $this->remoteHost = $selected;
-        $this->remoteUser = $servers[$selected];
+        $this->resolveServerConfig($selected, $servers[$selected]);
 
         return true;
+    }
+
+    protected function resolveServerConfig(string $key, string|array $config): void
+    {
+        $this->serverName = $key;
+
+        if (is_string($config)) {
+            $this->remoteUser = $config;
+            $this->sshHost = $key;
+            $this->remoteDirectory = '~/' . $key;
+
+            return;
+        }
+
+        $this->remoteUser = $config['user'];
+        $this->sshHost = $config['host'] ?? $key;
+        $this->sshPort = $config['port'] ?? null;
+        $this->identityFile = $config['identity_file'] ?? null;
+        $this->proxyJump = $config['proxy_jump'] ?? null;
+        $this->remoteDirectory = $config['directory'] ?? '~/' . $key;
     }
 
     protected function handleLocalDump(): bool
@@ -292,11 +329,10 @@ class UpdateFromRemote extends Command
 
     protected function handleRemoteDump(): bool
     {
-        $rootDirectory = '~/' . $this->remoteHost;
-        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->remoteHost);
+        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->sshHost);
 
         $credentials = spin(
-            fn () => $this->getRemoteCredentials($rootDirectory),
+            fn () => $this->getRemoteCredentials($this->remoteDirectory),
             __('Reading database credentials from server...')
         );
 
@@ -323,11 +359,11 @@ class UpdateFromRemote extends Command
             return false;
         }
 
-        RemoteDumpCreated::dispatch($this->remoteHost, $this->remoteUser);
+        RemoteDumpCreated::dispatch($this->serverName, $this->remoteUser);
 
         $result = spin(
             fn () => Process::timeout(900)->run([
-                'scp', ...$this->sshOptions(),
+                'scp', ...$this->scpOptions(),
                 sprintf('%s:~/dump.sql', $sshTarget),
                 '.',
             ]),
@@ -341,7 +377,7 @@ class UpdateFromRemote extends Command
             return false;
         }
 
-        DumpDownloaded::dispatch($this->remoteHost, $this->remoteUser, $this->dumpFile);
+        DumpDownloaded::dispatch($this->serverName, $this->remoteUser, $this->dumpFile);
 
         spin(
             fn () => Process::run(['ssh', ...$this->sshOptions(), $sshTarget, 'rm -f ~/dump.sql']),
@@ -356,8 +392,8 @@ class UpdateFromRemote extends Command
         $tempEnvFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'remote_env_' . uniqid();
 
         $result = Process::run([
-            'scp', ...$this->sshOptions(),
-            sprintf('%s@%s:%s/.env', $this->remoteUser, $this->remoteHost, $rootDirectory),
+            'scp', ...$this->scpOptions(),
+            sprintf('%s@%s:%s/.env', $this->remoteUser, $this->sshHost, $rootDirectory),
             $tempEnvFile,
         ]);
 
@@ -475,7 +511,7 @@ class UpdateFromRemote extends Command
         $artisan = $this->getArtisanCommand();
 
         info(__('Running migrations...'));
-        $result = Process::run($artisan.' migrate --force');
+        $result = Process::run($artisan . ' migrate --force');
 
         $this->line($result->output());
 
@@ -499,12 +535,12 @@ class UpdateFromRemote extends Command
         );
 
         spin(
-            fn () => Process::run($artisan.' cache:clear'),
+            fn () => Process::run($artisan . ' cache:clear'),
             __('Clearing cache...')
         );
 
         spin(
-            fn () => Process::run($artisan.' storage:link'),
+            fn () => Process::run($artisan . ' storage:link'),
             __('Creating storage link...')
         );
     }
@@ -527,9 +563,7 @@ class UpdateFromRemote extends Command
 
     protected function syncStorage(): void
     {
-        StorageSyncStarted::dispatch($this->remoteHost, $this->remoteUser);
-
-        $rootDirectory = '~/' . $this->remoteHost;
+        StorageSyncStarted::dispatch($this->serverName, $this->remoteUser);
 
         if ($this->isCommandAvailable('rsync')) {
             $result = spin(
@@ -537,33 +571,33 @@ class UpdateFromRemote extends Command
                     'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e "ssh %s" %s@%s:%s/storage .',
                     implode(' ', $this->sshOptions()),
                     $this->remoteUser,
-                    $this->remoteHost,
-                    $rootDirectory
+                    $this->sshHost,
+                    $this->remoteDirectory
                 )),
                 __('Syncing storage from server (rsync)...')
             );
         } else {
-            $result = $this->syncStorageViaTar($rootDirectory);
+            $result = $this->syncStorageViaTar();
         }
 
         if ($result->failed()) {
             error(__('Storage sync failed'));
             error($result->errorOutput());
-            StorageSyncCompleted::dispatch($this->remoteHost, $this->remoteUser, false);
+            StorageSyncCompleted::dispatch($this->serverName, $this->remoteUser, false);
         } else {
-            StorageSyncCompleted::dispatch($this->remoteHost, $this->remoteUser, true);
+            StorageSyncCompleted::dispatch($this->serverName, $this->remoteUser, true);
         }
     }
 
-    protected function syncStorageViaTar(string $rootDirectory): ProcessResult
+    protected function syncStorageViaTar(): ProcessResult
     {
         $archiveName = 'storage_sync_' . uniqid() . '.tar.gz';
-        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->remoteHost);
+        $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->sshHost);
 
         $result = spin(
             fn () => Process::timeout(300)->run([
                 'ssh', ...$this->sshOptions(), $sshTarget,
-                sprintf('cd %s && tar -czf ~/%s --exclude="logs" --exclude="framework" storage', $rootDirectory, $archiveName),
+                sprintf('cd %s && tar -czf ~/%s --exclude="logs" --exclude="framework" storage', $this->remoteDirectory, $archiveName),
             ]),
             __('Creating storage archive on server...')
         );
@@ -574,7 +608,7 @@ class UpdateFromRemote extends Command
 
         $result = spin(
             fn () => Process::timeout(900)->run([
-                'scp', ...$this->sshOptions(),
+                'scp', ...$this->scpOptions(),
                 sprintf('%s:~/%s', $sshTarget, $archiveName),
                 '.',
             ]),
@@ -609,8 +643,47 @@ class UpdateFromRemote extends Command
     protected function sshOptions(): array
     {
         $devNull = $this->isWindows() ? 'NUL' : '/dev/null';
+        $options = ['-o', 'StrictHostKeyChecking=no', '-o', "UserKnownHostsFile=$devNull"];
 
-        return ['-o', 'StrictHostKeyChecking=no', '-o', "UserKnownHostsFile=$devNull"];
+        if ($this->sshPort) {
+            $options[] = '-p';
+            $options[] = (string) $this->sshPort;
+        }
+
+        if ($this->identityFile) {
+            $options[] = '-i';
+            $options[] = $this->identityFile;
+        }
+
+        if ($this->proxyJump) {
+            $options[] = '-J';
+            $options[] = $this->proxyJump;
+        }
+
+        return $options;
+    }
+
+    protected function scpOptions(): array
+    {
+        $devNull = $this->isWindows() ? 'NUL' : '/dev/null';
+        $options = ['-o', 'StrictHostKeyChecking=no', '-o', "UserKnownHostsFile=$devNull"];
+
+        if ($this->sshPort) {
+            $options[] = '-P';
+            $options[] = (string) $this->sshPort;
+        }
+
+        if ($this->identityFile) {
+            $options[] = '-i';
+            $options[] = $this->identityFile;
+        }
+
+        if ($this->proxyJump) {
+            $options[] = '-o';
+            $options[] = sprintf('ProxyJump=%s', $this->proxyJump);
+        }
+
+        return $options;
     }
 
     protected function isWindows(): bool
