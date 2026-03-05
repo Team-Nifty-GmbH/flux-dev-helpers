@@ -345,7 +345,7 @@ class UpdateFromRemote extends Command
         ['user' => $dbUser, 'pass' => $dbPass, 'name' => $dbName] = $credentials;
 
         $result = spin(
-            fn () => Process::timeout(900)->run([
+            fn () => $this->runProcess([
                 'ssh', ...$this->sshOptions(), $sshTarget,
                 sprintf("mysqldump -u'%s' -p'%s' '%s' > ~/dump.sql", $dbUser, $dbPass, $dbName),
             ]),
@@ -362,7 +362,7 @@ class UpdateFromRemote extends Command
         RemoteDumpCreated::dispatch($this->serverName, $this->remoteUser);
 
         $result = spin(
-            fn () => Process::timeout(900)->run([
+            fn () => $this->runProcess([
                 'scp', ...$this->scpOptions(),
                 sprintf('%s:~/dump.sql', $sshTarget),
                 '.',
@@ -380,7 +380,7 @@ class UpdateFromRemote extends Command
         DumpDownloaded::dispatch($this->serverName, $this->remoteUser, $this->dumpFile);
 
         spin(
-            fn () => Process::run(['ssh', ...$this->sshOptions(), $sshTarget, 'rm -f ~/dump.sql']),
+            fn () => $this->runProcess(['ssh', ...$this->sshOptions(), $sshTarget, 'rm -f ~/dump.sql']),
             __('Cleaning up on server...')
         );
 
@@ -391,7 +391,7 @@ class UpdateFromRemote extends Command
     {
         $tempEnvFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'remote_env_' . uniqid();
 
-        $result = Process::run([
+        $result = $this->runProcess([
             'scp', ...$this->scpOptions(),
             sprintf('%s@%s:%s/.env', $this->remoteUser, $this->sshHost, $rootDirectory),
             $tempEnvFile,
@@ -433,7 +433,7 @@ class UpdateFromRemote extends Command
 
         // Array-based: bypasses shell, backticks in SQL are safe
         $result = spin(
-            fn () => Process::run([
+            fn () => $this->runProcess([
                 ...$this->buildMysqlArgs(),
                 '-e',
                 sprintf('DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s`;', $dbDatabase, $dbDatabase),
@@ -450,7 +450,7 @@ class UpdateFromRemote extends Command
 
         // String-based: shell needed for < redirection, works on bash and cmd.exe
         $result = spin(
-            fn () => Process::timeout(900)->run(sprintf(
+            fn () => $this->runProcess(sprintf(
                 '%s %s < %s',
                 $this->buildMysqlCommandString(),
                 escapeshellarg($dbDatabase),
@@ -511,7 +511,7 @@ class UpdateFromRemote extends Command
         $artisan = $this->getArtisanCommand();
 
         info(__('Running migrations...'));
-        $result = Process::run($artisan . ' migrate --force');
+        $result = $this->runProcess($artisan . ' migrate --force');
 
         $this->line($result->output());
 
@@ -535,12 +535,12 @@ class UpdateFromRemote extends Command
         );
 
         spin(
-            fn () => Process::run($artisan . ' cache:clear'),
+            fn () => $this->runProcess($artisan . ' cache:clear'),
             __('Clearing cache...')
         );
 
         spin(
-            fn () => Process::run($artisan . ' storage:link'),
+            fn () => $this->runProcess($artisan . ' storage:link'),
             __('Creating storage link...')
         );
     }
@@ -567,7 +567,7 @@ class UpdateFromRemote extends Command
 
         if ($this->isCommandAvailable('rsync')) {
             $result = spin(
-                fn () => Process::timeout(900)->run(sprintf(
+                fn () => $this->runProcess(sprintf(
                     'rsync -az --info=progress2 --delete --exclude "logs" --exclude "framework" -e "ssh %s" %s@%s:%s/storage .',
                     implode(' ', $this->sshOptions()),
                     $this->remoteUser,
@@ -595,7 +595,7 @@ class UpdateFromRemote extends Command
         $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->sshHost);
 
         $result = spin(
-            fn () => Process::timeout(300)->run([
+            fn () => $this->runProcess([
                 'ssh', ...$this->sshOptions(), $sshTarget,
                 sprintf('cd %s && tar -czf ~/%s --exclude="logs" --exclude="framework" storage', $this->remoteDirectory, $archiveName),
             ]),
@@ -607,7 +607,7 @@ class UpdateFromRemote extends Command
         }
 
         $result = spin(
-            fn () => Process::timeout(900)->run([
+            fn () => $this->runProcess([
                 'scp', ...$this->scpOptions(),
                 sprintf('%s:~/%s', $sshTarget, $archiveName),
                 '.',
@@ -616,18 +616,18 @@ class UpdateFromRemote extends Command
         );
 
         if ($result->failed()) {
-            Process::run(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
+            $this->runProcess(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
 
             return $result;
         }
 
         $result = spin(
-            fn () => Process::run(['tar', '-xzf', $archiveName]),
+            fn () => $this->runProcess(['tar', '-xzf', $archiveName]),
             __('Extracting storage archive...')
         );
 
         @unlink($archiveName);
-        Process::run(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
+        $this->runProcess(['ssh', ...$this->sshOptions(), $sshTarget, sprintf('rm -f ~/%s', $archiveName)]);
 
         return $result;
     }
@@ -686,6 +686,15 @@ class UpdateFromRemote extends Command
         return $options;
     }
 
+    protected function runProcess(string|array $command, int $timeout = -1): ProcessResult
+    {
+        $process = $timeout === -1
+            ? Process::forever()
+            : Process::timeout($timeout);
+
+        return $process->run($command);
+    }
+
     protected function isWindows(): bool
     {
         return PHP_OS_FAMILY === 'Windows';
@@ -693,7 +702,7 @@ class UpdateFromRemote extends Command
 
     protected function isCommandAvailable(string $command): bool
     {
-        $result = Process::run(
+        $result = $this->runProcess(
             $this->isWindows() ? ['where', $command] : ['which', $command]
         );
 
