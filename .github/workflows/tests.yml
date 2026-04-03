@@ -1,0 +1,39 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: [self-hosted, Linux]
+    container:
+      image: ghcr.io/team-nifty-gmbh/flux-ci:php8.5
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fix git ownership
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Configure Composer GitHub auth
+        run: composer config --global github-oauth.github.com ${{ github.token }}
+
+      - name: Install Composer dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Pint
+        run: ./vendor/bin/pint --test
