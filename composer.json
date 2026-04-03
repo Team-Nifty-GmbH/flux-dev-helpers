@@ -23,8 +23,8 @@
         "thedoctor0/laravel-factory-generator": "^1.4.3",
         "brianium/paratest": "^7.0",
         "laravel/pint": "^1.1",
-        "nunomaduro/collision": "^7.4",
-        "phpunit/phpunit": "^10.0"
+        "nunomaduro/collision": "^8.0",
+        "phpunit/phpunit": "^12.0"
     },
     "scripts": {
         "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
