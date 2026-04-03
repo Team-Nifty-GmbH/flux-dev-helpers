@@ -13,6 +13,7 @@ use RecursiveIteratorIterator;
 use ReflectionClass;
 use RegexIterator;
 use Throwable;
+
 use function Livewire\invade;
 
 class GenerateLivewireSmokeTests extends Command
@@ -29,7 +30,7 @@ class GenerateLivewireSmokeTests extends Command
             $componentRegistry = invade(app(ComponentRegistry::class));
             collect($componentRegistry->aliases)->each(function ($class): void {
                 if (str_starts_with($class, config('livewire.class_namespace'))) {
-                    $class = Str::after($class, config('livewire.class_namespace') . '\\');
+                    $class = Str::after($class, config('livewire.class_namespace').'\\');
                     $this->call('flux-dev:generate-livewire-smoke-tests', ['name' => $class]);
                 }
             });
@@ -56,7 +57,7 @@ class GenerateLivewireSmokeTests extends Command
 
         $this->ensureTestDirectoryExists($testPath);
 
-        $stubPath = __DIR__ . '/../../stubs/livewire-smoke-test.stub';
+        $stubPath = __DIR__.'/../../stubs/livewire-smoke-test.stub';
 
         if (! File::exists($stubPath)) {
             $this->error("Stub file not found: {$stubPath}");
@@ -85,9 +86,9 @@ class GenerateLivewireSmokeTests extends Command
 
     protected function getTestPath(string $componentName): string
     {
-        $testName = str_replace('.', '/', Str::studly($componentName)) . 'Test.php';
+        $testName = str_replace('.', '/', Str::studly($componentName)).'Test.php';
 
-        return base_path('tests/Feature/Livewire/' . $testName);
+        return base_path('tests/Feature/Livewire/'.$testName);
     }
 
     protected function getViewClassAliasFromNamespace(string $namespace, ?string $directoryPath = null): array
@@ -100,7 +101,7 @@ class GenerateLivewireSmokeTests extends Command
         foreach ($phpFiles as $phpFile) {
             $relativePath = Str::replace($directoryPath, '', $phpFile->getRealPath());
             $relativePath = Str::replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
-            $class = $namespace . str_replace(
+            $class = $namespace.str_replace(
                 '/',
                 '\\',
                 pathinfo($relativePath, PATHINFO_FILENAME)
@@ -139,7 +140,7 @@ class GenerateLivewireSmokeTests extends Command
     protected function resolveComponentClass(string $componentName): ?string
     {
         $namespace = config('livewire.class_namespace');
-        $class = $namespace . '\\' . str_replace('.', '\\', Str::studly($componentName));
+        $class = $namespace.'\\'.str_replace('.', '\\', Str::studly($componentName));
 
         return class_exists($class) ? $class : null;
     }

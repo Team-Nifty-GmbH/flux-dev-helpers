@@ -5,6 +5,7 @@ namespace TeamNiftyGmbH\FluxDevHelpers\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\spin;
@@ -43,7 +44,7 @@ class SetupTests extends Command
     {
         foreach ($this->testDirectories as $directory) {
             $path = base_path($directory);
-            $gitkeepPath = $path . '/.gitkeep';
+            $gitkeepPath = $path.'/.gitkeep';
 
             File::ensureDirectoryExists($path);
 
@@ -73,7 +74,7 @@ class SetupTests extends Command
 
     protected function publishWorkflowFile(): bool
     {
-        $sourcePath = __DIR__ . '/../../stubs/laravel.yml';
+        $sourcePath = __DIR__.'/../../stubs/laravel.yml';
         $targetPath = base_path('.github/workflows/tests.yml');
 
         if (! File::exists($sourcePath)) {

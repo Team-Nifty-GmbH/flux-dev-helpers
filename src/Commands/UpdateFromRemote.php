@@ -18,6 +18,7 @@ use TeamNiftyGmbH\FluxDevHelpers\Events\StorageSyncStarted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteCompleted;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteFailed;
 use TeamNiftyGmbH\FluxDevHelpers\Events\UpdateFromRemoteStarted;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
@@ -301,7 +302,7 @@ class UpdateFromRemote extends Command
         if (is_string($config)) {
             $this->remoteUser = $config;
             $this->sshHost = $key;
-            $this->remoteDirectory = '~/' . $key;
+            $this->remoteDirectory = '~/'.$key;
 
             return;
         }
@@ -311,7 +312,7 @@ class UpdateFromRemote extends Command
         $this->sshPort = $config['port'] ?? null;
         $this->identityFile = $config['identity_file'] ?? null;
         $this->proxyJump = $config['proxy_jump'] ?? null;
-        $this->remoteDirectory = $config['directory'] ?? '~/' . $key;
+        $this->remoteDirectory = $config['directory'] ?? '~/'.$key;
     }
 
     protected function handleLocalDump(): bool
@@ -389,7 +390,7 @@ class UpdateFromRemote extends Command
 
     protected function getRemoteCredentials(string $rootDirectory): ?array
     {
-        $tempEnvFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'remote_env_' . uniqid();
+        $tempEnvFile = sys_get_temp_dir().DIRECTORY_SEPARATOR.'remote_env_'.uniqid();
 
         $result = $this->runProcess([
             'scp', ...$this->scpOptions(),
@@ -412,7 +413,7 @@ class UpdateFromRemote extends Command
 
             $credentials = [];
             foreach ($mapping as $envKey => $credKey) {
-                if (preg_match('/^' . preg_quote($envKey, '/') . '=(.*)$/m', $envContent, $matches)) {
+                if (preg_match('/^'.preg_quote($envKey, '/').'=(.*)$/m', $envContent, $matches)) {
                     $credentials[$credKey] = trim($matches[1], " \t\n\r\0\x0B\"'");
                 } else {
                     return null;
@@ -475,15 +476,15 @@ class UpdateFromRemote extends Command
     {
         $args = [
             'mysql',
-            '-h' . config('database.connections.mysql.host'),
-            '-P' . config('database.connections.mysql.port'),
-            '-u' . config('database.connections.mysql.username'),
+            '-h'.config('database.connections.mysql.host'),
+            '-P'.config('database.connections.mysql.port'),
+            '-u'.config('database.connections.mysql.username'),
             '--protocol=TCP',
         ];
 
         $dbPass = config('database.connections.mysql.password');
         if ($dbPass) {
-            $args[] = '-p' . $dbPass;
+            $args[] = '-p'.$dbPass;
         }
 
         return $args;
@@ -500,7 +501,7 @@ class UpdateFromRemote extends Command
 
         $dbPass = config('database.connections.mysql.password');
         if ($dbPass) {
-            $cmd .= ' -p' . escapeshellarg($dbPass);
+            $cmd .= ' -p'.escapeshellarg($dbPass);
         }
 
         return $cmd;
@@ -511,7 +512,7 @@ class UpdateFromRemote extends Command
         $artisan = $this->getArtisanCommand();
 
         info(__('Running migrations...'));
-        $result = $this->runProcess($artisan . ' migrate --force');
+        $result = $this->runProcess($artisan.' migrate --force');
 
         $this->line($result->output());
 
@@ -535,12 +536,12 @@ class UpdateFromRemote extends Command
         );
 
         spin(
-            fn () => $this->runProcess($artisan . ' cache:clear'),
+            fn () => $this->runProcess($artisan.' cache:clear'),
             __('Clearing cache...')
         );
 
         spin(
-            fn () => $this->runProcess($artisan . ' storage:link'),
+            fn () => $this->runProcess($artisan.' storage:link'),
             __('Creating storage link...')
         );
     }
@@ -554,7 +555,7 @@ class UpdateFromRemote extends Command
 
         // Sail is a bash script - skip on Windows where it can't run natively
         if (! $this->isWindows() && file_exists(base_path('vendor/bin/sail'))) {
-            return base_path('vendor/bin/sail') . ' artisan';
+            return base_path('vendor/bin/sail').' artisan';
         }
 
         // Fallback to direct PHP execution
@@ -591,7 +592,7 @@ class UpdateFromRemote extends Command
 
     protected function syncStorageViaTar(): ProcessResult
     {
-        $archiveName = 'storage_sync_' . uniqid() . '.tar.gz';
+        $archiveName = 'storage_sync_'.uniqid().'.tar.gz';
         $sshTarget = sprintf('%s@%s', $this->remoteUser, $this->sshHost);
 
         $result = spin(

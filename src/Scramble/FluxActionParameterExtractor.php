@@ -99,7 +99,7 @@ class FluxActionParameterExtractor implements ParameterExtractor
                             $rulesetRules = $ruleset::getRules();
                             $rules = array_merge($rules, $rulesetRules);
                         } elseif (method_exists($ruleset, 'rules')) {
-                            $rulesetRules = (new $ruleset())->rules();
+                            $rulesetRules = (new $ruleset)->rules();
                             $rules = array_merge($rules, $rulesetRules);
                         }
                     }
@@ -109,7 +109,7 @@ class FluxActionParameterExtractor implements ParameterExtractor
             }
         } catch (Throwable $e) {
             // Log error for debugging
-            logger()->error('FluxActionParameterExtractor: Failed to get rules for ' . $actionClass, [
+            logger()->error('FluxActionParameterExtractor: Failed to get rules for '.$actionClass, [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

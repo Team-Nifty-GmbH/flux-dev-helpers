@@ -20,11 +20,11 @@
         "team-nifty-gmbh/flux-erp": "^1.0"
     },
     "require-dev": {
-        "thedoctor0/laravel-factory-generator": "^1.4.3",
         "brianium/paratest": "^7.0",
         "laravel/pint": "^1.1",
         "nunomaduro/collision": "^8.0",
-        "phpunit/phpunit": "^12.0"
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0"
     },
     "scripts": {
         "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
