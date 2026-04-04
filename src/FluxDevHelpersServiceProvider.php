@@ -33,7 +33,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/flux-dev-helpers.php',
+            __DIR__.'/../config/flux-dev-helpers.php',
             'flux-dev-helpers'
         );
 
@@ -100,7 +100,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
                 $transformers->append(FluxActionOperationExtension::class);
             })
             ->withDocumentTransformers(function (OpenApi $openApi): void {
-                $openApi->info->title = config('app.name', 'Nuxbe ERP') . ' API';
+                $openApi->info->title = config('app.name', 'Nuxbe ERP').' API';
                 $openApi->info->version = config('app.version', '1.0.0');
                 $openApi->info->description = 'API documentation for Nuxbe ERP. All endpoints require authentication via Bearer token (Laravel Sanctum).';
 
@@ -121,7 +121,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
     protected function offerPublishing(): void
     {
         $this->publishes([
-            __DIR__ . '/../stubs/laravel.yml' => base_path('.github/workflows/laravel.yml'),
+            __DIR__.'/../stubs/laravel.yml' => base_path('.github/workflows/laravel.yml'),
         ], 'flux-dev-helpers-laravel-workflow');
     }
 }

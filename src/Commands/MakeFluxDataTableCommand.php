@@ -29,7 +29,7 @@ class MakeFluxDataTableCommand extends GeneratorCommand
         } else {
             // Try to find the model in the app's Models directory
             $model = Str::studly($modelArgument);
-            $modelImport = $this->rootNamespace() . 'Models\\' . $model;
+            $modelImport = $this->rootNamespace().'Models\\'.$model;
 
             // If model doesn't exist in default location, use as-is
             if (! class_exists($modelImport)) {
@@ -47,11 +47,11 @@ class MakeFluxDataTableCommand extends GeneratorCommand
 
     protected function getDefaultNamespace($rootNamespace): string
     {
-        return $rootNamespace . '\Livewire\DataTables';
+        return $rootNamespace.'\Livewire\DataTables';
     }
 
     protected function getStub(): string
     {
-        return __DIR__ . '/../../stubs/data-table.stub';
+        return __DIR__.'/../../stubs/data-table.stub';
     }
 }

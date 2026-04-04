@@ -4,6 +4,7 @@ namespace TeamNiftyGmbH\FluxDevHelpers\Scramble;
 
 use Dedoc\Scramble\Extensions\OperationExtension;
 use Dedoc\Scramble\Support\Generator\Operation;
+use Dedoc\Scramble\Support\Generator\Reference;
 use Dedoc\Scramble\Support\Generator\Response;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\IntegerType;
@@ -63,7 +64,7 @@ class FluxActionOperationExtension extends OperationExtension
 
         // Format: model.actionName (e.g., address.createAddress)
         if ($modelName) {
-            return Str::lower($modelName) . '.' . $actionName;
+            return Str::lower($modelName).'.'.$actionName;
         }
 
         return $actionName;
@@ -98,14 +99,14 @@ class FluxActionOperationExtension extends OperationExtension
 
         // Re-add auth responses
         foreach ($existingResponses as $response) {
-            if ($response instanceof \Dedoc\Scramble\Support\Generator\Reference) {
+            if ($response instanceof Reference) {
                 $operation->addResponse($response);
             }
         }
 
         // Success response
         $models = $actionClass::models();
-        $responseSchema = new ObjectType();
+        $responseSchema = new ObjectType;
 
         if ($method === 'DELETE') {
             // DELETE returns 204 No Content or status message
@@ -114,12 +115,12 @@ class FluxActionOperationExtension extends OperationExtension
             );
         } else {
             // Add standard response structure
-            $responseSchema->addProperty('message', (new StringType())->example('success'));
-            $responseSchema->addProperty('status', (new IntegerType())->example($method === 'POST' ? 201 : 200));
+            $responseSchema->addProperty('message', (new StringType)->example('success'));
+            $responseSchema->addProperty('status', (new IntegerType)->example($method === 'POST' ? 201 : 200));
 
             if (! empty($models)) {
-                $dataType = new ObjectType();
-                $dataType->setDescription('The ' . class_basename($models[0]) . ' resource');
+                $dataType = new ObjectType;
+                $dataType->setDescription('The '.class_basename($models[0]).' resource');
                 $responseSchema->addProperty('data', $dataType);
             }
 
@@ -138,10 +139,10 @@ class FluxActionOperationExtension extends OperationExtension
     protected function addErrorResponses(Operation $operation): void
     {
         // 422 Validation Error
-        $validationError = new ObjectType();
-        $validationError->addProperty('message', (new StringType())->example('validation failed'));
-        $validationError->addProperty('status', (new IntegerType())->example(422));
-        $validationError->addProperty('errors', new ObjectType());
+        $validationError = new ObjectType;
+        $validationError->addProperty('message', (new StringType)->example('validation failed'));
+        $validationError->addProperty('status', (new IntegerType)->example(422));
+        $validationError->addProperty('errors', new ObjectType);
 
         $operation->addResponse(
             Response::make(422)
@@ -150,9 +151,9 @@ class FluxActionOperationExtension extends OperationExtension
         );
 
         // 403 Forbidden
-        $forbiddenError = new ObjectType();
-        $forbiddenError->addProperty('message', (new StringType())->example('forbidden'));
-        $forbiddenError->addProperty('status', (new IntegerType())->example(403));
+        $forbiddenError = new ObjectType;
+        $forbiddenError->addProperty('message', (new StringType)->example('forbidden'));
+        $forbiddenError->addProperty('status', (new IntegerType)->example(403));
 
         $operation->addResponse(
             Response::make(403)

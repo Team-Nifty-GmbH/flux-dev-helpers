@@ -9,6 +9,7 @@ use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
+
 use function Livewire\invade;
 
 class MakeModelCommand extends GeneratorCommand
@@ -27,35 +28,35 @@ class MakeModelCommand extends GeneratorCommand
         $this->call('flux-dev:make-flux-model', ['name' => $modelClass, '--migration' => true]);
 
         // create the datatable
-        $this->call('flux-dev:make-flux-data-table', ['name' => $name . 'List', 'model' => $modelClass]);
+        $this->call('flux-dev:make-flux-data-table', ['name' => $name.'List', 'model' => $modelClass]);
         // create rulesets
-        $this->call('make:ruleset', ['name' => 'Create' . $name . 'Ruleset', '--model' => $modelClass]);
+        $this->call('make:ruleset', ['name' => 'Create'.$name.'Ruleset', '--model' => $modelClass]);
         $createRuleset = $this->invadeCommand(
             MakeRuleset::class,
             ['name' => 'ExampleAction'],
             ['model' => $modelClass]
         )
-            ->getDefaultNamespace($this->rootNamespace()) . '\Create' . $name . 'Ruleset::class';
-        $this->call('make:ruleset', ['name' => 'Update' . $name . 'Ruleset', '--model' => $modelClass]);
+            ->getDefaultNamespace($this->rootNamespace()).'\Create'.$name.'Ruleset::class';
+        $this->call('make:ruleset', ['name' => 'Update'.$name.'Ruleset', '--model' => $modelClass]);
         $updateRuleset = $this->invadeCommand(
             MakeRuleset::class,
             ['name' => 'ExampleAction'],
             ['model' => $modelClass]
         )
-            ->getDefaultNamespace($this->rootNamespace()) . '\Update' . $name . 'Ruleset::class';
+            ->getDefaultNamespace($this->rootNamespace()).'\Update'.$name.'Ruleset::class';
 
-        $this->call('make:ruleset', ['name' => 'Delete' . $name . 'Ruleset', '--model' => $modelClass]);
+        $this->call('make:ruleset', ['name' => 'Delete'.$name.'Ruleset', '--model' => $modelClass]);
         $deleteRuleset = $this->invadeCommand(
             MakeRuleset::class,
             ['name' => 'ExampleAction'],
             ['model' => $modelClass]
         )
-            ->getDefaultNamespace($this->rootNamespace()) . '\Delete' . $name . 'Ruleset::class';
+            ->getDefaultNamespace($this->rootNamespace()).'\Delete'.$name.'Ruleset::class';
 
         // create CRUD action classes
-        $this->call('make:action', ['name' => 'Create' . $name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($createRuleset, '\\')]);
-        $this->call('make:action', ['name' => 'Update' . $name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($updateRuleset, '\\')]);
-        $this->call('make:action', ['name' => 'Delete' . $name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($deleteRuleset, '\\')]);
+        $this->call('make:action', ['name' => 'Create'.$name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($createRuleset, '\\')]);
+        $this->call('make:action', ['name' => 'Update'.$name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($updateRuleset, '\\')]);
+        $this->call('make:action', ['name' => 'Delete'.$name, '--model' => $modelClass, '--ruleset' => Str::deduplicate($deleteRuleset, '\\')]);
 
         // create the livewire form
         $command = $this->invadeCommand(
@@ -66,10 +67,10 @@ class MakeModelCommand extends GeneratorCommand
         $this->call(
             'make:flux-form',
             [
-                'name' => $name . 'Form',
-                '--createAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Create' . $name . '::class', '\\'),
-                '--updateAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Update' . $name . '::class', '\\'),
-                '--deleteAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()) . '\Delete' . $name . '::class', '\\'),
+                'name' => $name.'Form',
+                '--createAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()).'\Create'.$name.'::class', '\\'),
+                '--updateAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()).'\Update'.$name.'::class', '\\'),
+                '--deleteAction' => Str::deduplicate($command->getDefaultNamespace($this->rootNamespace()).'\Delete'.$name.'::class', '\\'),
             ]
         );
     }
@@ -86,7 +87,7 @@ class MakeModelCommand extends GeneratorCommand
         foreach ($options as $option => $value) {
             $input->setOption($option, $value);
         }
-        $symfonyOutput = new BufferedOutput();
+        $symfonyOutput = new BufferedOutput;
         $output = new OutputStyle($input, $symfonyOutput);
         $command->setLaravel(app());
         $command->setInput($input);

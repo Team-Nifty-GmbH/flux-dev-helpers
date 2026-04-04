@@ -43,11 +43,11 @@ class MakeFluxModelCommand extends GeneratorCommand
 
     protected function getDefaultNamespace($rootNamespace): string
     {
-        return $rootNamespace . '\Models';
+        return $rootNamespace.'\Models';
     }
 
     protected function getStub(): string
     {
-        return __DIR__ . '/../../stubs/model.stub';
+        return __DIR__.'/../../stubs/model.stub';
     }
 }
