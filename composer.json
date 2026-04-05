@@ -8,6 +8,11 @@
             "TeamNiftyGmbH\\FluxDevHelpers\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "TeamNiftyGmbH\\FluxDevHelpers\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Patrick Weh",
