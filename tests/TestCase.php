@@ -6,6 +6,7 @@ use Barryvdh\DomPDF\ServiceProvider;
 use FluxErp\FluxServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\File;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Laravel\Scout\ScoutServiceProvider;
 use Livewire\LivewireServiceProvider;
@@ -56,9 +57,7 @@ abstract class TestCase extends BaseTestCase
 
     protected function defineEnvironment($app): void
     {
-        if (! is_dir(database_path('settings'))) {
-            mkdir(database_path('settings'));
-        }
+        File::ensureDirectoryExists(database_path('settings'));
 
         $app['config']->set('database.default', env('DB_CONNECTION', 'sqlite'));
         $app['config']->set('database.connections.sqlite', [
