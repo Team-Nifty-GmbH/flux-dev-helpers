@@ -22,12 +22,14 @@ use TeamNiftyGmbH\FluxDevHelpers\Commands\SetupTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\UpdateFromRemote;
 use TeamNiftyGmbH\FluxDevHelpers\Scramble\FluxActionOperationExtension;
 use TeamNiftyGmbH\FluxDevHelpers\Scramble\FluxActionParameterExtractor;
+use TeamNiftyGmbH\NuxbeKnowledge\Support\KnowledgeManager;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
         $this->configureScramble();
+        $this->registerDocs();
     }
 
     public function register(): void
@@ -116,6 +118,23 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
                     SecurityScheme::http('bearer', 'JWT')
                 );
             });
+    }
+
+    protected function registerDocs(): void
+    {
+        if (! class_exists(KnowledgeManager::class)) {
+            return;
+        }
+
+        app(KnowledgeManager::class)
+            ->registerDocs(
+                package: 'flux-developer-docs',
+                path: [
+                    'en' => __DIR__.'/../docs/en',
+                ],
+                label: 'Flux Developer Docs',
+                icon: 'code-bracket',
+            );
     }
 
     protected function offerPublishing(): void
