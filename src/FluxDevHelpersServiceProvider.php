@@ -3,13 +3,13 @@
 namespace TeamNiftyGmbH\FluxDevHelpers;
 
 use Dedoc\Scramble\Configuration\OperationTransformers;
+use Dedoc\Scramble\Configuration\RuleTransformers;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Dedoc\Scramble\Support\Generator\Server;
 use Dedoc\Scramble\Support\RouteInfo;
-use FluxErp\Actions\FluxAction;
 use Illuminate\Routing\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -22,6 +22,9 @@ use TeamNiftyGmbH\FluxDevHelpers\Commands\SetupTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\UpdateFromRemote;
 use TeamNiftyGmbH\FluxDevHelpers\Scramble\FluxActionOperationExtension;
 use TeamNiftyGmbH\FluxDevHelpers\Scramble\FluxActionParameterExtractor;
+use TeamNiftyGmbH\FluxDevHelpers\Scramble\FluxActionRoute;
+use TeamNiftyGmbH\FluxDevHelpers\Scramble\Rules\ModelExistsRuleTransformer;
+use TeamNiftyGmbH\FluxDevHelpers\Scramble\Rules\ValidStateRuleTransformer;
 use TeamNiftyGmbH\NuxbeKnowledge\Support\KnowledgeManager;
 
 class FluxDevHelpersServiceProvider extends ServiceProvider
@@ -61,23 +64,15 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
         // Set a custom tag resolver to group by model
         Scramble::resolveTagsUsing(function (RouteInfo $routeInfo, Operation $operation): array {
             // Check if this is a FluxAction
-            $uses = $routeInfo->route->getAction('uses');
-            if (is_string($uses)) {
-                // Handle "Class@method" format (e.g., "UpdateAddress@__invoke")
-                if (str_contains($uses, '@')) {
-                    $uses = explode('@', $uses)[0];
-                }
-                if (class_exists($uses) && is_subclass_of($uses, FluxAction::class)) {
-                    $models = $uses::models();
-                    if (! empty($models)) {
-                        return [class_basename($models[0])];
-                    }
+            if ($actionClass = FluxActionRoute::fluxActionClass($routeInfo)) {
+                $models = $actionClass::models();
+                if (! empty($models)) {
+                    return [class_basename($models[0])];
                 }
             }
 
             // Check for model default (BaseController routes)
-            $model = $routeInfo->route->getAction('model');
-            if ($model && class_exists($model)) {
+            if ($model = FluxActionRoute::defaultModel($routeInfo->route)) {
                 return [class_basename($model)];
             }
 
@@ -100,6 +95,11 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
             ->withOperationTransformers(function (OperationTransformers $transformers): void {
                 // Add our FluxAction extension to customize operation info and responses
                 $transformers->append(FluxActionOperationExtension::class);
+            })
+            ->withRuleTransformers(function (RuleTransformers $transformers): void {
+                // Surface FluxErp custom validation rules (state enums, model existence)
+                $transformers->append(ValidStateRuleTransformer::class);
+                $transformers->append(ModelExistsRuleTransformer::class);
             })
             ->withDocumentTransformers(function (OpenApi $openApi): void {
                 $openApi->info->title = config('app.name', 'Nuxbe ERP').' API';
