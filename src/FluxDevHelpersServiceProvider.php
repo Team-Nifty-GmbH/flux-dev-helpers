@@ -13,6 +13,7 @@ use Dedoc\Scramble\Support\RouteInfo;
 use Illuminate\Routing\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use TeamNiftyGmbH\FluxDevHelpers\Commands\CacheApiDocs;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\GenerateLivewireSmokeTests;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeFluxDataTableCommand;
 use TeamNiftyGmbH\FluxDevHelpers\Commands\MakeFluxModelCommand;
@@ -43,6 +44,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
         );
 
         $this->commands([
+            CacheApiDocs::class,
             GenerateLivewireSmokeTests::class,
             MakeModelCommand::class,
             MakeFluxModelCommand::class,
@@ -63,7 +65,7 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
 
         // Generating the document on request exceeds the web memory limit, so keep it cached
         $this->optimizes(
-            optimize: 'scramble:cache',
+            optimize: 'flux-dev:cache-api-docs',
             clear: 'scramble:clear',
             key: 'scramble',
         );
