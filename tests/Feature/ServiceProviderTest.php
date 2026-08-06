@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\ServiceProvider;
 use TeamNiftyGmbH\FluxDevHelpers\FluxDevHelpersServiceProvider;
 
 it('boots the service provider', function (): void {
@@ -25,6 +26,13 @@ it('registers the commands', function (): void {
         ->toHaveKey('flux-dev:update-from-remote')
         ->toHaveKey('flux-dev:publish-pint-config')
         ->toHaveKey('flux-dev:setup-tests');
+});
+
+it('hooks the scramble cache into optimize and optimize:clear', function (): void {
+    expect(ServiceProvider::$optimizeCommands)
+        ->toContain('scramble:cache')
+        ->and(ServiceProvider::$optimizeClearCommands)
+        ->toContain('scramble:clear');
 });
 
 it('ships the developer docs with every chapter populated', function (): void {

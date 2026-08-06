@@ -61,6 +61,13 @@ class FluxDevHelpersServiceProvider extends ServiceProvider
             return;
         }
 
+        // Generating the document on request exceeds the web memory limit, so keep it cached
+        $this->optimizes(
+            optimize: 'scramble:cache',
+            clear: 'scramble:clear',
+            key: 'scramble',
+        );
+
         // Set a custom tag resolver to group by model
         Scramble::resolveTagsUsing(function (RouteInfo $routeInfo, Operation $operation): array {
             // Check if this is a FluxAction
