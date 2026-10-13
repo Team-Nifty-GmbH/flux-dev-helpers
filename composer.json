@@ -22,7 +22,7 @@
     "minimum-stability": "dev",
     "require": {
         "dedoc/scramble": "*",
-        "team-nifty-gmbh/flux-erp": "*"
+        "team-nifty-gmbh/flux-erp": "^1.12"
     },
     "suggest": {
         "team-nifty-gmbh/nuxbe-knowledge": "Required to surface the bundled developer docs in the in-app knowledge browser."
