@@ -8,6 +8,7 @@ use Dedoc\Scramble\Support\OperationExtensions\RequestBodyExtension;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\GeneratesParametersFromRules;
 use Dedoc\Scramble\Support\OperationExtensions\RulesExtractor\ParametersExtractionResult;
 use Dedoc\Scramble\Support\RouteInfo;
+use FluxErp\Models\User;
 use Illuminate\Support\Arr;
 use Throwable;
 
@@ -60,16 +61,27 @@ class FluxActionParameterExtractor implements ParameterExtractor
 
     protected function getValidationRules(string $actionClass): array
     {
+        // Some rulesets scope their rules to the current user, which does not exist while
+        // the document is generated on the command line, so lend them an unsaved one
+        $guestUser = ! auth()->check();
+        if ($guestUser) {
+            auth()->setUser(app(User::class));
+        }
+
         try {
             return $actionClass::make([])
                 ->setRulesFromRulesets()
                 ->getRules();
         } catch (Throwable $e) {
-            logger()->error('FluxActionParameterExtractor: Failed to get rules for '.$actionClass, [
+            logger()->warning('FluxActionParameterExtractor: Failed to get rules for '.$actionClass, [
                 'error' => $e->getMessage(),
             ]);
 
             return [];
+        } finally {
+            if ($guestUser) {
+                auth()->forgetUser();
+            }
         }
     }
 }
