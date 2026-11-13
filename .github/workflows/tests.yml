@@ -29,7 +29,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Fix git ownership
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -61,7 +61,7 @@ jobs:
           MYSQL_DATABASE: testing
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Fix git ownership
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
